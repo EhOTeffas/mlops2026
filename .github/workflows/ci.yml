@@ -12,12 +12,14 @@ name: CI - Build e Testes do Classificador
 # Quando o workflow dispara:
 # - push em main e pull request para main
 # - workflow_dispatch: botão "Run workflow" na aba Actions
+# - workflow_call: permite ser chamado como Reusable Workflow pelo cd.yml
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
+  workflow_call:
 
 # Princípio do menor privilégio: o GITHUB_TOKEN só pode LER o repositório.
 permissions:
@@ -83,13 +85,13 @@ jobs:
   # -------------------------------------------------------------
   # JOB 3: smoke test ponta a ponta. Sobe a API real (com modelos do
   # W&B e MongoDB) e roda os testes e2e contra ela.
-  # Só roda em push para main / manual, porque usa SEGREDOS (PRs de
-  # forks não recebem segredos) e é lento.
+  # Só roda em push para main / manual / chamado por CD, porque usa SEGREDOS
+  # (PRs de forks não recebem segredos) e é lento.
   # -------------------------------------------------------------
   smoke:
     name: Smoke test (docker compose + e2e)
     needs: test   # só roda se o job "test" passou
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     # O docker-compose.yml lê estas variáveis do ambiente do runner.
