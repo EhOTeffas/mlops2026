@@ -120,6 +120,7 @@ jobs:
 
       - name: Rodar testes e2e
         env:
+          E2E_BASE_URL: "http://localhost:8000"
           WANDB_API_KEY: ${{ secrets.WANDB_API_KEY }}
           WANDB_PROJECT: ${{ secrets.WANDB_PROJECT }}
           WANDB_MODELS: ${{ secrets.WANDB_MODELS }}
