@@ -18,6 +18,7 @@ permissions:
 jobs:
   call-ci:
     uses: ./.github/workflows/ci.yml
+    secrets: inherit
 
   deploy:
     needs: call-ci
