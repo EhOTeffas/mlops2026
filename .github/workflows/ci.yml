@@ -20,6 +20,15 @@ on:
     branches: [main]
   workflow_dispatch:
   workflow_call:
+    secrets:
+      WANDB_API_KEY:
+        required: false
+      WANDB_PROJECT:
+        required: false
+      WANDB_MODELS:
+        required: false
+      MONGO_URL:
+        required: false
 
 # Princípio do menor privilégio: o GITHUB_TOKEN só pode LER o repositório.
 permissions:
