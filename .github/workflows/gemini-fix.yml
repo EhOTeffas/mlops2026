@@ -1,0 +1,49 @@
+name: Gemini Auto Fix on Failure
+
+on:
+  workflow_dispatch: # Permite rodar manualmente a action pela aba Actions do GitHub
+
+jobs:
+  gemini-fix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar Gemini CLI
+        run: npm install -g @google/gemini-cli
+
+      - name: Executar Gemini e Aplicar Mudanças
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          # Exemplo de comando da CLI para analisar/corrigir
+          gemini "Examine os arquivos do projeto e corrija eventuais erros de sintaxe ou lint"
+
+      - name: Criar Pull Request com as Alterações
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Configura identidade do bot para o commit
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Verifica se o Gemini fez alguma alteração nos arquivos
+          if [ -n "$(git status --porcelain)" ]; then
+            git checkout -b fix/gemini-auto-correcoes
+            git add .
+            git commit -m "fix: correções automáticas geradas pelo Gemini"
+            git push origin fix/gemini-auto-correcoes --force
+            gh pr create --title "Fix: Correções automáticas pelo Gemini" --body "Esta PR foi gerada automaticamente pela CLI do Gemini."
+          else
+            echo "Nenhuma alteração foi necessária."
+          fi
