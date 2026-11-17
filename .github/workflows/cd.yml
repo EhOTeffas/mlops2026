@@ -6,10 +6,10 @@ on:
       - 'v*'
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'Tag Docker para deploy / rollback (ex: v1.0.0)'
-        required: true
-        default: 'v1.0.0'
+      version:
+        description: 'Versão/Tag para implantar (ex: v1.0.1)'
+        required: false
+        default: 'v1.0.1'
 
 permissions:
   id-token: write
@@ -18,42 +18,50 @@ permissions:
 jobs:
   call-ci:
     uses: ./.github/workflows/ci.yml
-    secrets: inherit
+    secrets:
+      WANDB_API_KEY: ${{ secrets.WANDB_API_KEY }}
+      WANDB_PROJECT: ${{ secrets.WANDB_PROJECT }}
+      WANDB_MODELS: ${{ secrets.WANDB_MODELS }}
+      MONGO_URL: ${{ secrets.MONGO_URL }}
 
   deploy:
+    name: Deploy para o Azure Container Apps
     needs: call-ci
     runs-on: ubuntu-latest
     environment: production
+
     steps:
-      - name: Definir Tag
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Extrair Tag ou Versão
+        id: vars
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "IMAGE_TAG=${{ inputs.tag }}" >> $GITHUB_ENV
+            TAG_NAME="${{ github.event.inputs.version }}"
           else
-            echo "IMAGE_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+            TAG_NAME="${github_ref_name:-${GITHUB_REF#refs/tags/}}"
           fi
+          echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "Implantando versão: $TAG_NAME"
 
-      - name: Azure Login (OIDC)
+      - name: Autenticar no Azure via OIDC (Managed Identity)
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Deploy no Azure Container Apps
-        uses: azure/container-apps-deploy-action@v1
-        with:
-          resourceGroup: mlops-2026-2
-          containerAppName: intent-clf
-          imageToDeploy: ghcr.io/ehoteffas/mlops2026:${{ env.IMAGE_TAG }}
-
-      - name: Health Check
+      - name: Atualizar imagem no Azure Container App
         run: |
-          echo "Aguardando inicialização..."
-          sleep 15
-          RESPONSE=$(curl -s ${{ vars.APP_URL }}/)
-          echo "Resposta: $RESPONSE"
-          if [[ "$RESPONSE" != *"v1.0"* && "$RESPONSE" != *"ok"* ]]; then
-            echo "Health check falhou!"
-            exit 1
-          fi
+          az containerapp update \
+            --name intent-clf \
+            --resource-group mlops-2026-2 \
+            --set-env-vars APP_VERSION="${{ steps.vars.outputs.tag }}" \
+            --image ghcr.io/${{ github.repository_owner }}/intent-clf:${{ steps.vars.outputs.tag }}
+
+      - name: Teste de fumaça pós-deploy (Health Check)
+        run: |
+          url="https://intent-clf.jollycliff-51ea3375.brazilsouth.azurecontainerapps.io/"
+          echo "Validando endpoint: $url"
+          curl -fs "$url"
