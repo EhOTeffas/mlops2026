@@ -120,7 +120,11 @@ jobs:
 
       - name: Rodar testes e2e
         env:
-          E2E_BASE_URL: http://localhost:8000
+          WANDB_API_KEY: ${{ secrets.WANDB_API_KEY }}
+          WANDB_PROJECT: ${{ secrets.WANDB_PROJECT }}
+          WANDB_MODELS: ${{ secrets.WANDB_MODELS }}
+          MONGO_URL: ${{ secrets.MONGO_URL }}
+          MONGO_DB: ci_tests
         run: python -m pytest -m e2e -ra
 
       - name: Logs do container (em caso de falha)
