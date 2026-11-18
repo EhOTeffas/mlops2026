@@ -88,6 +88,12 @@ jobs:
           exit $faltando
 
       - name: Subir a API com docker compose
+        env:
+          WANDB_API_KEY: ${{ secrets.WANDB_API_KEY }}
+          WANDB_PROJECT: ${{ secrets.WANDB_PROJECT }}
+          WANDB_MODELS: ${{ secrets.WANDB_MODELS }}
+          MONGO_URL: ${{ secrets.MONGO_URL }}
+          MONGO_DB: ci_tests
         run: docker compose up -d --build
 
       - name: Esperar a API ficar pronta
